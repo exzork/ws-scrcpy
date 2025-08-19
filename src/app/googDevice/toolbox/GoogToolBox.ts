@@ -84,7 +84,7 @@ export class GoogToolBox extends ToolBox {
 
         const fullscreen = new ToolBoxButton('Fullscreen Mode', SvgImage.Icon.FULL_SCREEN);
         fullscreen.addEventListener('click', () => {
-            player.getParent()?.requestFullscreen();
+            player.openFullscreen();
         });
         elements.push(fullscreen);
 

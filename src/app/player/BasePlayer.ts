@@ -343,8 +343,37 @@ export abstract class BasePlayer extends TypedEmitter<PlayerEvents> {
         return this.touchableCanvas;
     }
 
-    public getParent(): HTMLElement | undefined{
-        return this.parentElement;
+    public openFullscreen() {
+        if (!this.parentElement) {
+            console.warn('Cannot enter fullscreen: no parent element');
+            return;
+        }
+        const element = this.parentElement as any;
+
+        try {
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) {
+                // Chrome, Safari, Opera (older)
+                element.webkitRequestFullscreen();
+            } else if (element.webkitRequestFullScreen) {
+                // Safari (very old)
+                element.webkitRequestFullScreen();
+            } else if (element.mozRequestFullScreen) {
+                // Firefox older
+                element.mozRequestFullScreen();
+            } else if (element.msRequestFullscreen) {
+                // IE/Edge
+                element.msRequestFullscreen();
+            } else if (element.oRequestFullscreen) {
+                // Opera (very old)
+                element.oRequestFullscreen();
+            } else {
+                console.warn('Fullscreen API is not supported by this browser');
+            }
+        } catch (error) {
+            console.error('Failed to enter fullscreen:', error);
+        }
     }
 
     public setParent(parent: HTMLElement): void {
