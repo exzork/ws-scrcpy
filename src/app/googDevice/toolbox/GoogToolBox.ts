@@ -75,12 +75,17 @@ export class GoogToolBox extends ToolBox {
             return button;
         });
         if (player.supportsScreenshot) {
-            const screenshot = new ToolBoxButton('Take screenshot', SvgImage.Icon.CAMERA);
+            const screenshot = new ToolBoxButton('Take screenshot', SvgImage.Icon.FULL_SCREEN);
             screenshot.addEventListener('click', () => {
                 player.createScreenshot(client.getDeviceName());
             });
             elements.push(screenshot);
         }
+
+        const fullscreen =  new ToolBoxButton('Fullscreen Mode', SvgImage.Icon.);
+        fullscreen.addEventListener('click', () => {
+                player.getParent()?.requestFullscreen();
+        });
 
         const keyboard = new ToolBoxCheckbox(
             'Capture keyboard',
