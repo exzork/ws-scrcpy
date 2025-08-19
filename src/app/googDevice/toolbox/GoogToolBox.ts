@@ -75,7 +75,7 @@ export class GoogToolBox extends ToolBox {
             return button;
         });
         if (player.supportsScreenshot) {
-            const screenshot = new ToolBoxButton('Take screenshot', SvgImage.Icon.FULL_SCREEN);
+            const screenshot = new ToolBoxButton('Take screenshot', SvgImage.Icon.CAMERA);
             screenshot.addEventListener('click', () => {
                 player.createScreenshot(client.getDeviceName());
             });
