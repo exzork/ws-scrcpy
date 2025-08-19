@@ -5,6 +5,7 @@ import Size from '../Size';
 import Util from '../Util';
 import { TypedEmitter } from '../../common/TypedEmitter';
 import { DisplayInfo } from '../DisplayInfo';
+import { StreamClientScrcpy } from '../googDevice/client/StreamClientScrcpy';
 
 interface BitrateStat {
     timestamp: number;
@@ -343,7 +344,7 @@ export abstract class BasePlayer extends TypedEmitter<PlayerEvents> {
         return this.touchableCanvas;
     }
 
-    public openFullscreen() {
+    public openFullscreen(client: StreamClientScrcpy) {
         if (!this.parentElement) {
             console.warn('Cannot enter fullscreen: no parent element');
             return;
@@ -366,7 +367,16 @@ export abstract class BasePlayer extends TypedEmitter<PlayerEvents> {
         // Set up fullscreen styles that maintain aspect ratio
         const setupFullscreenStyles = () => {
             if (!this.parentElement) return;
-
+            document.getElementsByTagName('video')[0].style.width = '100vw';
+            document.getElementsByTagName('video')[0].style.height = '100vh';
+            this.touchableCanvas.style.width = '100vw';
+            this.touchableCanvas.style.height = '100vh';
+            this.touchableCanvas.style.maxWidth = 'none';
+            this.touchableCanvas.style.maxHeight = 'none';
+            this.parentElement.style.width = '100vw';
+            this.parentElement.style.height = '100vh';
+            this.parentElement.style.maxWidth = 'none';
+            this.parentElement.style.maxHeight = 'none';
             this.parentElement.style.width = '100vw';
             this.parentElement.style.height = '100vh';
             this.parentElement.style.maxWidth = 'none';
@@ -380,20 +390,34 @@ export abstract class BasePlayer extends TypedEmitter<PlayerEvents> {
             // Scale the canvas to fit screen while maintaining aspect ratio
             if (this.screenInfo) {
                 const { width: deviceWidth, height: deviceHeight } = this.screenInfo.videoSize;
+                console.log(`Device video size: ${deviceWidth}x${deviceHeight}`);
+                const ratio = window.devicePixelRatio || 1;
                 const screenWidth = window.screen.width;
                 const screenHeight = window.screen.height;
-
-                const scaleX = screenWidth / deviceWidth;
-                const scaleY = screenHeight / deviceHeight;
-                const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond original size
-
-                const scaledWidth = deviceWidth * scale;
-                const scaledHeight = deviceHeight * scale;
-
-                this.touchableCanvas.style.width = `${scaledWidth}px`;
-                this.touchableCanvas.style.height = `${scaledHeight}px`;
-                this.touchableCanvas.style.maxWidth = `${scaledWidth}px`;
-                this.touchableCanvas.style.maxHeight = `${scaledHeight}px`;
+                console.log(`Screen size: ${screenWidth}x${screenHeight}`);
+                const bounds = new Size(screenWidth * ratio, screenHeight * ratio);
+                const {
+                    bitrate,
+                    maxFps,
+                    iFrameInterval,
+                    lockedVideoOrientation,
+                    sendFrameMeta,
+                    displayId,
+                    codecOptions,
+                    encoderName,
+                } = this.videoSettings;
+                const videoSettings = new VideoSettings({
+                    bounds,
+                    bitrate,
+                    maxFps,
+                    iFrameInterval,
+                    lockedVideoOrientation,
+                    sendFrameMeta,
+                    displayId,
+                    codecOptions,
+                    encoderName,
+                });
+                client.sendNewVideoSetting(videoSettings);
             }
         };
 
@@ -416,6 +440,34 @@ export abstract class BasePlayer extends TypedEmitter<PlayerEvents> {
             this.touchableCanvas.style.height = '';
             this.touchableCanvas.style.maxWidth = '';
             this.touchableCanvas.style.maxHeight = '';
+
+            //
+            document.getElementsByTagName('video')[0].style.width = '';
+            document.getElementsByTagName('video')[0].style.height = '';
+
+            const bounds = client.getMaxSize();
+            const {
+                bitrate,
+                maxFps,
+                iFrameInterval,
+                lockedVideoOrientation,
+                sendFrameMeta,
+                displayId,
+                codecOptions,
+                encoderName,
+            } = this.videoSettings;
+            const videoSettings = new VideoSettings({
+                bounds,
+                bitrate,
+                maxFps,
+                iFrameInterval,
+                lockedVideoOrientation,
+                sendFrameMeta,
+                displayId,
+                codecOptions,
+                encoderName,
+            });
+            client.sendNewVideoSetting(videoSettings);
         };
 
         // Listen for fullscreen change events
@@ -465,19 +517,9 @@ export abstract class BasePlayer extends TypedEmitter<PlayerEvents> {
                 element.oRequestFullscreen();
             } else {
                 console.warn('Fullscreen API is not supported by this browser');
-                // Clean up event listeners if fullscreen is not supported
-                document.removeEventListener('fullscreenchange', handleFullscreenChange);
-                document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-                document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-                document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
             }
         } catch (error) {
             console.error('Failed to enter fullscreen:', error);
-            // Clean up event listeners on error
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-            document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-            document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
         }
     }
 
