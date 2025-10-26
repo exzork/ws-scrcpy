@@ -5,6 +5,7 @@ import Size from '../Size';
 import Util from '../Util';
 import { TypedEmitter } from '../../common/TypedEmitter';
 import { DisplayInfo } from '../DisplayInfo';
+import { StreamClientScrcpy } from '../googDevice/client/StreamClientScrcpy';
 
 interface BitrateStat {
     timestamp: number;
@@ -83,6 +84,7 @@ export abstract class BasePlayer extends TypedEmitter<PlayerEvents> {
     private statLines: string[] = [];
     public readonly supportsScreenshot: boolean = false;
     public readonly resizeVideoToBounds: boolean = false;
+    protected isFullScreen: boolean = false;
     protected videoHeight = -1;
     protected videoWidth = -1;
 
@@ -341,6 +343,123 @@ export abstract class BasePlayer extends TypedEmitter<PlayerEvents> {
 
     public getTouchableElement(): HTMLCanvasElement {
         return this.touchableCanvas;
+    }
+
+    private static createVideoSettingsWithBounds(old: VideoSettings, newBounds: Size): VideoSettings {
+        return new VideoSettings({
+            crop: old.crop,
+            bitrate: old.bitrate,
+            bounds: newBounds,
+            maxFps: old.maxFps,
+            iFrameInterval: old.iFrameInterval,
+            sendFrameMeta: old.sendFrameMeta,
+            lockedVideoOrientation: old.lockedVideoOrientation,
+            displayId: old.displayId,
+            codecOptions: old.codecOptions,
+            encoderName: old.encoderName,
+        });
+    }
+
+    public openFullscreen(client: StreamClientScrcpy) {
+        if (!this.parentElement) {
+            console.warn('Cannot enter fullscreen: no parent element');
+            return;
+        }
+
+        const element = this.parentElement as any;
+
+        // Set up fullscreen styles that maintain an aspect ratio
+        const scaleScreen = () => {
+            if (!this.parentElement) return;
+
+            // Scale the canvas to fit screen while maintaining aspect ratio
+            if (this.screenInfo) {
+                const { width: deviceWidth, height: deviceHeight } = this.screenInfo.videoSize;
+                console.log(`Device video size: ${deviceWidth}x${deviceHeight}`);
+                const ratio = window.devicePixelRatio || 1;
+                const screenWidth = window.screen.width;
+                const screenHeight = window.screen.height;
+                console.log(`Screen size: ${screenWidth}x${screenHeight}`);
+                let newBounds;
+                if (this.isFullScreen) {
+                    newBounds = new Size(screenWidth * ratio, screenHeight * ratio);
+                    this.parentElement.style.display = 'flex';
+                    this.parentElement.style.justifyContent = 'center';
+                    this.parentElement.style.alignItems = 'center';
+                    this.tag.style.maxWidth = '100vw';
+                    this.tag.style.maxHeight = '100vh';
+                    this.touchableCanvas.style.maxWidth = '100vw';
+                    this.touchableCanvas.style.maxHeight = '100vh';
+                } else {
+                    newBounds = client.getMaxSize();
+                    this.parentElement.style.display = '';
+                    this.parentElement.style.justifyContent = '';
+                    this.parentElement.style.alignItems = '';
+                    this.tag.style.maxWidth = '';
+                    this.tag.style.maxHeight = '';
+                    this.touchableCanvas.style.maxWidth = '';
+                    this.touchableCanvas.style.maxHeight = '';
+                }
+                console.log('New bounds:', newBounds);
+                if (newBounds) {
+                    client.sendNewVideoSetting(BasePlayer.createVideoSettingsWithBounds(this.videoSettings, newBounds));
+                }
+            }
+        };
+
+        // Listen for fullscreen change events
+        const handleFullscreenChange = () => {
+            const isFullscreen = !!(
+                document.fullscreenElement ||
+                (document as any).webkitFullscreenElement ||
+                (document as any).mozFullScreenElement ||
+                (document as any).msFullscreenElement
+            );
+
+            if (isFullscreen) {
+                this.isFullScreen = true;
+                scaleScreen();
+            } else {
+                this.isFullScreen = false;
+                scaleScreen();
+                // Remove event listeners
+                document.removeEventListener('fullscreenchange', handleFullscreenChange);
+                document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+                document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+                document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+            }
+        };
+
+        // Add event listeners for fullscreen changes
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+        try {
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) {
+                // Chrome, Safari, Opera (older)
+                element.webkitRequestFullscreen();
+            } else if (element.webkitRequestFullScreen) {
+                // Safari (very old)
+                element.webkitRequestFullScreen();
+            } else if (element.mozRequestFullScreen) {
+                // Firefox older
+                element.mozRequestFullScreen();
+            } else if (element.msRequestFullscreen) {
+                // IE/Edge
+                element.msRequestFullscreen();
+            } else if (element.oRequestFullscreen) {
+                // Opera (very old)
+                element.oRequestFullscreen();
+            } else {
+                console.warn('Fullscreen API is not supported by this browser');
+            }
+        } catch (error) {
+            console.error('Failed to enter fullscreen:', error);
+        }
     }
 
     public setParent(parent: HTMLElement): void {

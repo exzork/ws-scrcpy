@@ -163,6 +163,10 @@ export abstract class BaseCanvasBasedPlayer extends BasePlayer {
             if (parent) {
                 const tag = BaseCanvasBasedPlayer.createElement(this.tag.id);
                 tag.className = this.tag.className;
+                if (this.isFullScreen) {
+                    tag.style.maxWidth = '100vw';
+                    tag.style.maxHeight = '100vh';
+                }
                 parent.replaceChild(tag, this.tag);
                 parent.appendChild(this.touchableCanvas);
                 this.tag = tag;

@@ -82,6 +82,12 @@ export class GoogToolBox extends ToolBox {
             elements.push(screenshot);
         }
 
+        const fullscreen = new ToolBoxButton('Fullscreen Mode', SvgImage.Icon.FULL_SCREEN);
+        fullscreen.addEventListener('click', () => {
+            player.openFullscreen(client);
+        });
+        elements.push(fullscreen);
+
         const keyboard = new ToolBoxCheckbox(
             'Capture keyboard',
             SvgImage.Icon.KEYBOARD,
